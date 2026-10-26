@@ -35,6 +35,11 @@ if [ -n "$(git status --porcelain)" ]; then
     echo "The work tree is not clean. Commit or remove each change first, so that the release commit holds only the release." >&2
     exit 1
 fi
+if grep -qs 'relativePath = LocalSDK;' Example/CodelloyExample.xcodeproj/project.pbxproj; then
+    echo "The example still uses Example/LocalSDK, so CI of the release commit would fail. Move it to the released" \
+        "package first (Example/README.md, \"Use the released package\") and commit that change." >&2
+    exit 1
+fi
 
 version_line='^let version = "[0-9.]*"$'
 checksum_line='^let checksum = "[0-9a-f]*"$'
@@ -67,9 +72,6 @@ git commit -q -m "chore(release): CodelloySDK $version"
 commit=$(git rev-parse HEAD)
 
 echo "Committed $commit: CodelloySDK $version, checksum $checksum"
-if grep -qs 'relativePath = LocalSDK;' Example/CodelloyExample.xcodeproj/project.pbxproj; then
-    echo "The example still uses Example/LocalSDK. Move it to the released package (Example/README.md), or CI fails."
-fi
 cat <<EOF
 Next steps, after approval of the release:
 1. Push this commit.
