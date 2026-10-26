@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master, "feature/**"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Release script test
+        run: scripts/test-update-release.sh
+      - name: Version
+        id: version
+        run: |
+          version=$(sed -n 's/^let version = "\(.*\)"$/\1/p' Package.swift)
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          if [ "$version" = 0.0.0 ]; then
+            echo "No release exists yet (version 0.0.0). The resolve and the example build are skipped." >>"$GITHUB_STEP_SUMMARY"
+          fi
+      # SwiftPM downloads the release zip and fails when its SHA-256 is not the checksum of Package.swift.
+      - name: Resolve the package
+        if: steps.version.outputs.version != '0.0.0'
+        run: swift package resolve
+      # After the first release, the example uses the root package (Example/README.md).
+      - name: Build the example for the simulator
+        if: steps.version.outputs.version != '0.0.0'
+        working-directory: Example
+        run: >-
+          xcodebuild -quiet -scheme CodelloyExample -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build

@@ -1,0 +1,14 @@
+.DS_Store
+
+# Xcode and SwiftPM
+.build/
+.swiftpm/
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Local values and local SDK builds. No identifying data in git.
+Local.xcconfig
+*.xcframework
+*.xcframework.zip

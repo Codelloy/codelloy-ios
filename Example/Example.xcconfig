@@ -1,0 +1,12 @@
+// Placeholders only. No identifying data in git.
+// Put your values in Local.xcconfig (gitignored). See Local.xcconfig.example.
+
+DEVELOPMENT_TEAM =
+PRODUCT_BUNDLE_IDENTIFIER = com.example.codelloy
+EXAMPLE_LINK_DOMAIN = links.example.com
+// The SDK key. The app does not call configure while the key is empty.
+EXAMPLE_CODELLOY_KEY =
+// The SDK server. Empty keeps the default server of the SDK.
+EXAMPLE_CODELLOY_BASE_URL =
+
+#include? "Local.xcconfig"
