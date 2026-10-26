@@ -3,20 +3,23 @@
 # Usage: scripts/update-release.sh <version> <path of CodelloySDK-<version>.xcframework.zip>
 # The zip comes from one release build of the iOS core. The script does not tag, push or make the GitHub release.
 set -eu
+# A set CDPATH makes cd print the directory, or go to another folder of the same name.
+unset CDPATH
 
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <version> <path of CodelloySDK-<version>.xcframework.zip>" >&2
     exit 1
 fi
 version=$1
-# Only digits and two dots, with digits at each end and between the dots.
+# Only digits and two dots, with digits at each end and between the dots, and no leading zero (semver). 0.0.0 is the
+# placeholder, and CI does not check it.
 case $version in
-    *[!0-9.]* | *.*.*.* | .* | *. | *..*) valid=no ;;
+    *[!0-9.]* | *.*.*.* | .* | *. | *..* | 0[0-9]* | *.0[0-9]* | 0.0.0) valid=no ;;
     *.*.*) valid=yes ;;
     *) valid=no ;;
 esac
 if [ $valid = no ]; then
-    echo "The version must be major.minor.patch, for example 0.1.0." >&2
+    echo "The version must be major.minor.patch with no leading zero and not 0.0.0, for example 0.1.0." >&2
     exit 1
 fi
 name=CodelloySDK-$version.xcframework.zip
@@ -52,30 +55,40 @@ for check in "Package.swift:$version_line" "Package.swift:$checksum_line" "READM
 done
 
 checksum=$(swift package compute-checksum "$zip")
+# From here, a failure or an interrupt puts both files back, so that a failed run changes no file.
+trap 'rm -f Package.swift.new README.md.new; git reset -q -- Package.swift README.md; git checkout -- Package.swift README.md' EXIT
+trap 'exit 1' INT TERM
 sed -e "s/$version_line/let version = \"$version\"/" -e "s/$checksum_line/let checksum = \"$checksum\"/" \
     Package.swift >Package.swift.new
 sed "s/$readme_line/codelloy-ios\", from: \"$version\")/" README.md >README.md.new
 mv Package.swift.new Package.swift
 mv README.md.new README.md
 
-# The manifest must still parse and must give the new URL and checksum.
+# The manifest must still parse and must give exactly one binary URL and one checksum: the new ones.
 url=https://github.com/Codelloy/codelloy-ios/releases/download/$version/$name
-manifest=$(swift package dump-package 2>&1) || manifest=
-if ! echo "$manifest" | grep -qF "\"$url\"" || ! echo "$manifest" | grep -qF "\"$checksum\""; then
-    git checkout -- Package.swift README.md
-    echo "Package.swift does not give $url with checksum $checksum. The script restored both files." >&2
+if ! manifest=$(swift package dump-package 2>&1); then
+    echo "$manifest" >&2
+    echo "swift package dump-package failed. The script restored both files." >&2
+    exit 1
+fi
+field() { echo "$manifest" | sed -n "s/^ *\"$1\" : \"\(.*\)\",\{0,1\}\$/\1/p"; }
+if [ "$(field url)" != "$url" ] || [ "$(field checksum)" != "$checksum" ]; then
+    echo "Package.swift does not give exactly one binary target, with $url and checksum $checksum." \
+        "The script restored both files." >&2
     exit 1
 fi
 
 git add Package.swift README.md
 git commit -q -m "chore(release): CodelloySDK $version"
+trap - EXIT INT TERM
 commit=$(git rev-parse HEAD)
 
 echo "Committed $commit: CodelloySDK $version, checksum $checksum"
 cat <<EOF
 Next steps, after approval of the release:
 1. Push this commit.
-2. Make the release of this commit with this zip:
+2. Check that the zip is still the file of this checksum, then make the release of this commit with it:
+   echo "$checksum  $zip" | shasum -a 256 -c
    gh release create $version "$zip" -R Codelloy/codelloy-ios --target $commit --title $version --notes "Codelloy iOS SDK $version"
 3. Run the CI of this commit again if it ran before the release. Its resolve step downloads the release zip.
 EOF
