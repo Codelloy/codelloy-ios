@@ -42,10 +42,11 @@ A link opens the app only in a build that is signed with your Team ID, because t
 
 ## Use the released package
 
-At the first release, move the example to the root package of this repo before you run `scripts/update-release.sh`:
+At the first release, move the example to the root package of this repo before you run `scripts/update-release.sh`. The script refuses to run while the example uses `Example/LocalSDK`.
 
 1. In `Example/CodelloyExample.xcodeproj/project.pbxproj`, change `relativePath = LocalSDK;` to `relativePath = ..;`.
 2. Delete the folder `Example/LocalSDK`.
-3. Commit the change.
+3. In this README, delete the section "The SDK before the first release" and this section.
+4. Commit the change.
 
 The example then uses the root `Package.swift`, which is the manifest that apps get. Xcode downloads the release zip and compares it with the checksum. CI builds the example only when `Package.swift` holds a released version.
