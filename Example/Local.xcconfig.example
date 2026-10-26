@@ -1,0 +1,13 @@
+// Copy this file to Local.xcconfig and set your values. Git ignores Local.xcconfig.
+
+// Your 10-character Apple Team ID.
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+// The bundle ID that the apple-app-site-association file of your link domain lists.
+PRODUCT_BUNDLE_IDENTIFIER = com.example.codelloy
+// Your link domain. For a development build, add ?mode=developer, for example links.example.com?mode=developer
+EXAMPLE_LINK_DOMAIN = links.example.com
+// The SDK key of your organisation. Use the test key for a development build.
+EXAMPLE_CODELLOY_KEY = YOUR_SDK_TEST_KEY
+// Optional. The SDK server. Two slashes start a comment in an xcconfig file, so put $() between them.
+// For a local backend: http:/$()/localhost:8080/link
+EXAMPLE_CODELLOY_BASE_URL =
