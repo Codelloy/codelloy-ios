@@ -11,8 +11,10 @@ fail() {
     exit 1
 }
 
-# A fixed identity, so that the test also commits on a CI runner with no git identity.
+# A fixed identity, so that the test also commits on a CI runner with no git identity. No global or system config, so
+# that hooks, signing or templates of the machine do not change the test repo.
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 repo=$tmp/repo
 mkdir -p "$repo/scripts"
 cp "$root/Package.swift" "$root/README.md" "$repo/"
@@ -52,8 +54,8 @@ expect_failure() {
     [ "$(git -C "$repo" rev-list --count HEAD)" = "$commits" ] || fail "a commit after a failure for: $*"
     [ "$(git -C "$repo" status --porcelain)" = "$status" ] || fail "a changed file after a failure for: $*"
 }
-# Each zip has the name of its version, so that only the version check can refuse it.
-for v in 1.0 9.9.9.9 0.0.0 01.2.3 1.02.3; do
+# Each zip has the name of its version, so that only the version check can refuse it. 9.9.9 is released already.
+for v in 1.0 9.9.9.9 0.0.0 01.2.3 1.02.3 9.9.9 9.9.8; do
     cp "$zip" "$tmp/CodelloySDK-$v.xcframework.zip"
     expect_failure "$v" "$tmp/CodelloySDK-$v.xcframework.zip"
 done
@@ -109,5 +111,9 @@ grep -q 'error:' "$tmp/err" || fail "the error of dump-package is not shown"
 echo "# No dependency line" >"$repo/README.md"
 git -C "$repo" commit -q -am "no dependency line"
 expect_failure 9.9.10 "$zip10"
+
+# A newer version that sorts lower as text, so the failures above did not come from the version order.
+git -C "$repo" reset -q --hard HEAD~1
+"$repo/scripts/update-release.sh" 9.9.10 "$zip10" >"$tmp/out" 2>&1 || fail "9.9.10 after 9.9.9 failed: $(cat "$tmp/out")"
 
 echo "update-release.sh: all checks pass"

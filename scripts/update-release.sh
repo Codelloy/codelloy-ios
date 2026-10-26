@@ -53,6 +53,13 @@ for check in "Package.swift:$version_line" "Package.swift:$checksum_line" "READM
         exit 1
     fi
 done
+# A version that is not newer would give a released version a second checksum, or move apps back to an older one.
+current=$(sed -n "s/^let version = \"\(.*\)\"$/\1/p" Package.swift)
+newest=$(printf '%s\n' "$current" "$version" | sort -t . -k 1,1n -k 2,2n -k 3,3n | tail -n 1)
+if [ "$version" = "$current" ] || [ "$newest" != "$version" ]; then
+    echo "The version must be newer than the current version $current." >&2
+    exit 1
+fi
 
 checksum=$(swift package compute-checksum "$zip")
 # From here, a failure or an interrupt puts both files back, so that a failed run changes no file.
